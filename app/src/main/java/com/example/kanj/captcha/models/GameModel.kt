@@ -3,7 +3,6 @@ package com.example.kanj.captcha.models
 import android.app.Application
 import android.arch.lifecycle.AndroidViewModel
 import android.os.CountDownTimer
-import android.util.Log
 import com.example.kanj.captcha.api.CaptchData
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -29,6 +28,7 @@ class GameModel(val app: Application) : AndroidViewModel(app) {
     private var shownCaptcha: CaptchData
     private var remainingTime: Int = 0
     private var turns = 0
+    var resultDisplayer: ResultDisplayer? = null
 
     init {
         captchas = arrayListOf(ArrayList(), ArrayList(), ArrayList(), ArrayList(), ArrayList())
@@ -82,8 +82,13 @@ class GameModel(val app: Application) : AndroidViewModel(app) {
             gameOver()
         } else if (nextLevel > 5) {
             nextLevel = 5
+            showNextQuestion(nextLevel)
+        } else {
+            showNextQuestion(nextLevel)
         }
+    }
 
+    private fun showNextQuestion(nextLevel: Int) {
         val selected = random.nextInt(captchas[nextLevel - 1].size - 1)
         shownCaptcha = captchas[nextLevel - 1][selected]
         captchas[nextLevel - 1].removeAt(selected)
@@ -95,7 +100,17 @@ class GameModel(val app: Application) : AndroidViewModel(app) {
     }
 
     private fun gameOver() {
-
+        var score = 0
+        var rate = 0
+        var totalTime = 0
+        solutions.forEach({
+            if (it.correct) {
+                score++
+            }
+            rate += it.timeTaken
+            totalTime += TIME_PER_LEVEL[it.level - 1]
+        })
+        resultDisplayer?.showResult(solutions, score, rate, totalTime)
     }
 
     inner class MyTimer(seconds: Int) : CountDownTimer(seconds.toLong() * 1000, 1000) {
@@ -114,6 +129,14 @@ class GameModel(val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    override fun onCleared() {
+        countdownTimer.cancel()
+    }
+
     // TODO: Assume that answer is user submitted answer. Check later
     class SolutionData(val image: String, val answer: String, val correct: Boolean, val level: Int, val timeTaken: Int)
+
+    interface ResultDisplayer {
+        fun showResult(results: ArrayList<SolutionData>, score: Int, rate: Int, totalTime: Int)
+    }
 }
